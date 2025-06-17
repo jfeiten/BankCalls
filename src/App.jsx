@@ -708,7 +708,7 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
 
   const handleViewDetails = async (customer) => {
     try {
-      const response = await fetch(`/customers/${customer.id}`);
+      const response = await makeAuthenticatedRequest(`/customers/${customer.id}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch customer details: ${response.status}`);
       }
@@ -1347,7 +1347,7 @@ function KanbanBoard({ customers, onUpdateStatus, onEdit, onOpenInsightsModal, s
 
   const handleViewDetails = async (customer) => {
     try {
-      const response = await fetch(`/customers/${customer.id}`);
+      const response = await makeAuthenticatedRequest(`/customers/${customer.id}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch customer details: ${response.status}`);
       }
