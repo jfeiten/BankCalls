@@ -708,15 +708,35 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
 
   const handleViewDetails = async (customer) => {
     try {
+      // First, update the prediction for the customer
+      await makeAuthenticatedRequest(`/update_customer_prediction/${customer.id}`, {
+        method: 'POST',
+        body: JSON.stringify({ customer_id: customer.id }),
+      });
+
+      // Then get the predictions
+      const predictionsResponse = await makeAuthenticatedRequest(`/predictions/${customer.id}`);
+      const predictionData = await predictionsResponse.json();
+
+      // Get the customer details
       const response = await makeAuthenticatedRequest(`/customers/${customer.id}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch customer details: ${response.status}`);
       }
       const customerDetails = await response.json();
-      // Keep the original ID from the list view
-      customerDetails.id = customer.id;
-      console.log("Fetched customer details:", customerDetails);
-      setSelectedCustomer(customerDetails);
+      
+      // Combine customer details with prediction data
+      const completeCustomerData = {
+        ...customerDetails,
+        id: customer.id, // Keep the original ID
+        customerScore: predictionData.predicted_score !== null ? Number(predictionData.predicted_score) : null,
+        probableSubscriber: predictionData.predicted_label === "Yes" ? "Yes" : 
+                           predictionData.predicted_label === "No" ? "No" : "Uncertain",
+        predictionExplanation: predictionData.explanation || ""
+      };
+
+      console.log("Complete customer data:", completeCustomerData);
+      setSelectedCustomer(completeCustomerData);
       setIsDetailsModalOpen(true);
     } catch (err) {
       console.error("Error fetching customer details:", err);
@@ -1347,15 +1367,35 @@ function KanbanBoard({ customers, onUpdateStatus, onEdit, onOpenInsightsModal, s
 
   const handleViewDetails = async (customer) => {
     try {
+      // First, update the prediction for the customer
+      await makeAuthenticatedRequest(`/update_customer_prediction/${customer.id}`, {
+        method: 'POST',
+        body: JSON.stringify({ customer_id: customer.id }),
+      });
+
+      // Then get the predictions
+      const predictionsResponse = await makeAuthenticatedRequest(`/predictions/${customer.id}`);
+      const predictionData = await predictionsResponse.json();
+
+      // Get the customer details
       const response = await makeAuthenticatedRequest(`/customers/${customer.id}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch customer details: ${response.status}`);
       }
       const customerDetails = await response.json();
-      // Keep the original ID from the list view
-      customerDetails.id = customer.id;
-      console.log("Fetched customer details:", customerDetails);
-      setSelectedCustomer(customerDetails);
+      
+      // Combine customer details with prediction data
+      const completeCustomerData = {
+        ...customerDetails,
+        id: customer.id, // Keep the original ID
+        customerScore: predictionData.predicted_score !== null ? Number(predictionData.predicted_score) : null,
+        probableSubscriber: predictionData.predicted_label === "Yes" ? "Yes" : 
+                           predictionData.predicted_label === "No" ? "No" : "Uncertain",
+        predictionExplanation: predictionData.explanation || ""
+      };
+
+      console.log("Complete customer data:", completeCustomerData);
+      setSelectedCustomer(completeCustomerData);
       setIsDetailsModalOpen(true);
     } catch (err) {
       console.error("Error fetching customer details:", err);
@@ -1716,6 +1756,28 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-200 transition-colors">
             <XCircle size={24} />
           </button>
+        </div>
+
+        {/* Add prediction score display */}
+        <div className="mb-6 p-4 bg-slate-700/50 rounded-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Prediction Score</label>
+              <p className="text-lg text-sky-200 font-semibold">
+                {customer.customerScore !== null ? customer.customerScore.toFixed(4) : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Probable Subscriber</label>
+              <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                customer.probableSubscriber === "Yes" ? "bg-green-500/30 text-green-300" :
+                customer.probableSubscriber === "No" ? "bg-red-500/30 text-red-300" :
+                "bg-yellow-500/30 text-yellow-300"
+              }`}>
+                {customer.probableSubscriber || 'N/A'}
+              </span>
+            </div>
+          </div>
         </div>
 
         {isLoadingShap && (
