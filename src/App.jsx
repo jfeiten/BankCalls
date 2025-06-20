@@ -401,9 +401,54 @@ function App() {
     }
   };
 
-  const handleEditCustomer = (customer) => {
-    setEditingCustomer(customer);
-    setCurrentView('form');
+  const handleEditCustomer = async (customer) => {
+    try {
+      // Fetch complete customer details for editing
+      const response = await makeAuthenticatedRequest(`/customers/${customer.id}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch customer details: ${response.status}`);
+      }
+      const customerDetails = await response.json();
+      
+      // Combine with existing customer data and ensure all required fields are present
+      const completeCustomerData = {
+        ...initialCustomerForm,
+        ...customer,
+        ...customerDetails,
+        id: customer.id, // Keep the original ID
+        name: customerDetails.name || customer.name || "",
+        phoneNumber: customerDetails.telephone || customer.phoneNumber || "",
+        age: customerDetails.age || "",
+        maritalStatus: customerDetails.marital_status || MARITAL_STATUSES[0],
+        education: customerDetails.education || EDUCATION_LEVELS[0],
+        defaultCredit: customerDetails.has_default_credit || YES_NO_UNKNOWN[0],
+        housingLoan: customerDetails.has_housing_loan || YES_NO_UNKNOWN[0],
+        personalLoan: customerDetails.has_personal_loan || YES_NO_UNKNOWN[0],
+        contactType: customerDetails.contact_type || CONTACT_TYPES[0],
+        lastContactDate: customerDetails.last_contact_date || "",
+        campaignContacts: customerDetails.campaign || "1",
+        previousContacts: customerDetails.previous_number_of_contacts || "0",
+        poutcome: customerDetails.previous_outcome || POUTCOME_OPTIONS[0],
+        empVarRate: customerDetails.emp_var_rate || "",
+        consPriceIdx: customerDetails.cons_price_idx || "",
+        consConfIdx: customerDetails.cons_conf_idx || "",
+        euribor3m: customerDetails.euribor3m || "",
+        nrEmployed: customerDetails.nr_employed || "",
+        contactingStatus: customer.contactingStatus || CUSTOMER_STATUSES.PENDING,
+        customerScore: customer.customerScore,
+        probableSubscriber: customer.probableSubscriber || PROBABLE_SUBSCRIBER_OPTIONS[2],
+      };
+
+      console.log("Complete customer data for editing:", completeCustomerData);
+      setEditingCustomer(completeCustomerData);
+      setCurrentView('form');
+    } catch (err) {
+      console.error("Error fetching customer details for editing:", err);
+      setError("Failed to load customer details for editing. " + err.message);
+      // Fallback to original customer data if API call fails
+      setEditingCustomer(customer);
+      setCurrentView('form');
+    }
   };
 
   const handleDeleteCustomer = async (customerId) => {
@@ -901,6 +946,12 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <button
+                      onClick={() => onEdit(customer)}
+                      className="text-xs bg-sky-500 hover:bg-sky-600 text-white px-2 py-1 rounded transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
                       onClick={() => handleViewDetails(customer)}
                       className="text-xs bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded transition-colors"
                     >
@@ -1009,6 +1060,15 @@ function CustomerForm({ onSave, onCancel, initialData }) {
         contactType: initialData.contactType || CONTACT_TYPES[0],
         poutcome: initialData.poutcome || POUTCOME_OPTIONS[0],
         contactingStatus: initialData.contactingStatus || CUSTOMER_STATUSES.PENDING,
+        // Ensure all required fields have default values
+        name: initialData.name || "",
+        campaignContacts: initialData.campaignContacts || "1",
+        empVarRate: initialData.empVarRate || "",
+        consPriceIdx: initialData.consPriceIdx || "",
+        consConfIdx: initialData.consConfIdx || "",
+        euribor3m: initialData.euribor3m || "",
+        nrEmployed: initialData.nrEmployed || "",
+        previousContacts: initialData.previousContacts || "0",
      });
   }, [initialData]);
 
