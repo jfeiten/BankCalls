@@ -816,12 +816,26 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
         <table className="w-full min-w-max text-sm text-left text-gray-300">
           <thead className="text-xs text-sky-300 uppercase bg-slate-700/50">
             <tr>
-              {['name', 'phoneNumber', 'contactingStatus', 'customerScore', 'probableSubscriber'].map(key => (
-                <th key={key} scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors" onClick={() => onSort(key)}>
-                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                  {sortConfig.key === key && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
-                </th>
-              ))}
+              <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors" onClick={() => onSort('name')}>
+                Name
+                {sortConfig.key === 'name' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+              </th>
+              <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors" onClick={() => onSort('phoneNumber')}>
+                Phone Number
+                {sortConfig.key === 'phoneNumber' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+              </th>
+              <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors w-48" onClick={() => onSort('contactingStatus')}>
+                Contacting Status
+                {sortConfig.key === 'contactingStatus' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+              </th>
+              <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors" onClick={() => onSort('customerScore')}>
+                Customer Score
+                {sortConfig.key === 'customerScore' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+              </th>
+              <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors w-32" onClick={() => onSort('probableSubscriber')}>
+                Probable Subscriber
+                {sortConfig.key === 'probableSubscriber' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
+              </th>
               <th scope="col" className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -832,7 +846,7 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
               <tr key={customer.id} className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors">
                 <td className="px-4 py-3 font-medium text-white">{customer.name}</td>
                 <td className="px-4 py-3">{customer.phoneNumber || 'N/A'}</td>
-                <td className="px-4 py-3 relative">
+                <td className="px-4 py-3 relative w-48">
                   <button 
                     onClick={() => handleStatusClick(customer.id)}
                     className={`w-full text-left px-2 py-1 text-xs font-semibold rounded-full flex items-center gap-1 cursor-pointer
@@ -871,7 +885,7 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
                       customer.customerScore !== null ? customer.customerScore : 'N/A'
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 w-32">
                     {isPredicting ? (
                       <span className="text-yellow-400 flex items-center gap-1">
                         <Clock className="w-4 h-4 animate-spin" />
