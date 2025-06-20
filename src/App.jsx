@@ -159,9 +159,6 @@ function App() {
   const [userId, setUserId] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
-  const [isInsightsModalOpen, setIsInsightsModalOpen] = useState(false);
-  const [selectedCustomerForInsights, setSelectedCustomerForInsights] = useState(null);
-
   const [predictingCustomers, setPredictingCustomers] = useState(new Set());
   const [notification, setNotification] = useState(null);
   const [updatingShap, setUpdatingShap] = useState(false);
@@ -539,7 +536,7 @@ function App() {
       await makeAuthenticatedRequest('/update_shap_values/', {
         method: 'POST',
         body: JSON.stringify({
-          customer_id: selectedCustomerForInsights?.id
+          customer_id: null
         }),
       });
       
@@ -643,7 +640,6 @@ function App() {
             setSearchTerm={setSearchTerm}
             setFilterStatus={setFilterStatus}
             setFilterProbable={setFilterProbable} 
-            onOpenInsightsModal={handleOpenInsightsModal}
                 predictingCustomers={predictingCustomers}
                 onUpdateShapValues={handleUpdateShapValues}
                 updatingShap={updatingShap}
@@ -654,7 +650,6 @@ function App() {
             customers={filteredCustomers} 
             onUpdateStatus={handleUpdateStatus}
             onEdit={handleEditCustomer}
-            onOpenInsightsModal={handleOpenInsightsModal}
             setError={setError}
           />
         )}
@@ -669,13 +664,7 @@ function App() {
         )}
       </main>
 
-      <PredictiveInsightsModal 
-        customer={selectedCustomerForInsights} 
-        isOpen={isInsightsModalOpen} 
-        onClose={handleCloseInsightsModal} 
-      />
-
-       <footer className="text-center text-xs text-gray-500 mt-8 py-4 border-t border-slate-700">
+      <footer className="text-center text-xs text-gray-500 mt-8 py-4 border-t border-slate-700">
         Banking CRM Application &copy; {new Date().getFullYear()} (Data from API)
       </footer>
     </div>
@@ -684,7 +673,7 @@ function App() {
 
 // --- CustomerList Component ---
 // Added isLoading to props
-function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, onSort, sortConfig, setSearchTerm, setFilterStatus, setFilterProbable, onOpenInsightsModal, predictingCustomers, onUpdateShapValues, updatingShap }) {
+function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, onSort, sortConfig, setSearchTerm, setFilterStatus, setFilterProbable, predictingCustomers, onUpdateShapValues, updatingShap }) {
   const [editingStatusCustomerId, setEditingStatusCustomerId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -897,12 +886,6 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => onOpenInsightsModal(customer)}
-                      className="text-xs bg-sky-500 hover:bg-sky-600 text-white px-2 py-1 rounded transition-colors"
-                    >
-                      View Insights
-                    </button>
                     <button
                       onClick={() => handleViewDetails(customer)}
                       className="text-xs bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded transition-colors"
@@ -1360,7 +1343,7 @@ function FormSelect({ label, name, value, onChange, options, required, readOnly 
 
 
 // --- KanbanBoard Component ---
-function KanbanBoard({ customers, onUpdateStatus, onEdit, onOpenInsightsModal, setError }) {
+function KanbanBoard({ customers, onUpdateStatus, onEdit, setError }) {
   const [draggedItem, setDraggedItem] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -1458,7 +1441,6 @@ function KanbanBoard({ customers, onUpdateStatus, onEdit, onOpenInsightsModal, s
                   customer={customer} 
                   onDragStart={handleDragStart} 
                   onEdit={onEdit} 
-                  onOpenInsightsModal={onOpenInsightsModal}
                   onViewDetails={handleViewDetails}
                 />
               ))}
@@ -1484,7 +1466,7 @@ function KanbanBoard({ customers, onUpdateStatus, onEdit, onOpenInsightsModal, s
 }
 
 // --- KanbanCard Component ---
-function KanbanCard({ customer, onDragStart, onEdit, onOpenInsightsModal, onViewDetails }) {
+function KanbanCard({ customer, onDragStart, onEdit, onViewDetails }) {
   const getProbableSubscriberColor = (probable) => {
     if (probable === "Yes") return "text-green-400";
     if (probable === "No") return "text-red-400";
@@ -1500,7 +1482,6 @@ function KanbanCard({ customer, onDragStart, onEdit, onOpenInsightsModal, onView
       <div className="flex justify-between items-start mb-1">
         <h4 className="font-semibold text-gray-100 text-sm break-all">{customer.name}</h4>
         <div className="flex-shrink-0 space-x-1">
-            <button onClick={() => onOpenInsightsModal(customer)} className="text-purple-400 hover:text-purple-300 transition-colors p-0.5 rounded-md hover:bg-slate-600" title="View Predictive Insights"><TrendingUp size={15} /></button>
             <button onClick={() => onEdit(customer)} className="text-sky-400 hover:text-sky-300 transition-colors p-0.5 rounded-md hover:bg-slate-600" title="Edit Customer"><Edit3 size={15} /></button>
             <button onClick={() => onViewDetails(customer)} className="text-emerald-400 hover:text-emerald-300 transition-colors p-0.5 rounded-md hover:bg-slate-600" title="View Details"><Eye size={15} /></button>
         </div>
