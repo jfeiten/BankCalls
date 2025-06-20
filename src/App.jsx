@@ -694,7 +694,6 @@ function App() {
           <KanbanBoard
             customers={filteredCustomers} 
             onUpdateStatus={handleUpdateStatus}
-            onEdit={handleEditCustomer}
             setError={setError}
           />
         )}
@@ -946,12 +945,6 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={() => onEdit(customer)}
-                      className="text-xs bg-sky-500 hover:bg-sky-600 text-white px-2 py-1 rounded transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
                       onClick={() => handleViewDetails(customer)}
                       className="text-xs bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded transition-colors"
                     >
@@ -1106,38 +1099,39 @@ function CustomerForm({ onSave, onCancel, initialData }) {
     
     // Required fields validation
     if (!formData.name?.trim()) newErrors.name = 'Name is required';
-    if (!formData.age?.trim()) newErrors.age = 'Age is required';
+    if (!formData.age?.toString().trim()) newErrors.age = 'Age is required';
     if (!formData.phoneNumber?.trim()) newErrors.phoneNumber = 'Phone number is required';
     if (!formData.lastContactDate?.trim()) newErrors.lastContactDate = 'Last contact date is required';
-    if (!formData.campaignContacts?.trim()) newErrors.campaignContacts = 'Campaign contacts is required';
-    if (!formData.empVarRate?.trim()) newErrors.empVarRate = 'Employment variation rate is required';
-    if (!formData.consPriceIdx?.trim()) newErrors.consPriceIdx = 'Consumer price index is required';
-    if (!formData.consConfIdx?.trim()) newErrors.consConfIdx = 'Consumer confidence index is required';
-    if (!formData.euribor3m?.trim()) newErrors.euribor3m = 'Euribor 3m rate is required';
-    if (!formData.nrEmployed?.trim()) newErrors.nrEmployed = 'Number of employees is required';
+    if (!formData.campaignContacts?.toString().trim()) newErrors.campaignContacts = 'Campaign contacts is required';
+    if (!formData.empVarRate?.toString().trim()) newErrors.empVarRate = 'Employment variation rate is required';
+    if (!formData.consPriceIdx?.toString().trim()) newErrors.consPriceIdx = 'Consumer price index is required';
+    if (!formData.consConfIdx?.toString().trim()) newErrors.consConfIdx = 'Consumer confidence index is required';
+    if (!formData.euribor3m?.toString().trim()) newErrors.euribor3m = 'Euribor 3m rate is required';
+    if (!formData.nrEmployed?.toString().trim()) newErrors.nrEmployed = 'Number of employees is required';
 
     // Numeric validation
     const numericFields = ['age', 'campaignContacts', 'previousContacts', 'empVarRate', 'consPriceIdx', 'consConfIdx', 'euribor3m', 'nrEmployed'];
     numericFields.forEach(field => {
-      if (formData[field] && isNaN(Number(formData[field]))) {
+      const value = formData[field];
+      if (value && value.toString().trim() && isNaN(Number(value))) {
         newErrors[field] = 'Must be a number';
       }
     });
 
     // Range validation
-    if (formData.empVarRate && (Number(formData.empVarRate) < -3.4 || Number(formData.empVarRate) > 1.4)) {
+    if (formData.empVarRate && formData.empVarRate.toString().trim() && (Number(formData.empVarRate) < -3.4 || Number(formData.empVarRate) > 1.4)) {
       newErrors.empVarRate = 'Must be between -3.4 and 1.4';
     }
-    if (formData.consPriceIdx && (Number(formData.consPriceIdx) < 92.20 || Number(formData.consPriceIdx) > 94.77)) {
+    if (formData.consPriceIdx && formData.consPriceIdx.toString().trim() && (Number(formData.consPriceIdx) < 92.20 || Number(formData.consPriceIdx) > 94.77)) {
       newErrors.consPriceIdx = 'Must be between 92.20 and 94.77';
     }
-    if (formData.consConfIdx && (Number(formData.consConfIdx) < -50.8 || Number(formData.consConfIdx) > -26.9)) {
+    if (formData.consConfIdx && formData.consConfIdx.toString().trim() && (Number(formData.consConfIdx) < -50.8 || Number(formData.consConfIdx) > -26.9)) {
       newErrors.consConfIdx = 'Must be between -50.8 and -26.9';
     }
-    if (formData.euribor3m && (Number(formData.euribor3m) < 0.634 || Number(formData.euribor3m) > 5.045)) {
+    if (formData.euribor3m && formData.euribor3m.toString().trim() && (Number(formData.euribor3m) < 0.634 || Number(formData.euribor3m) > 5.045)) {
       newErrors.euribor3m = 'Must be between 0.634 and 5.045';
     }
-    if (formData.nrEmployed && (Number(formData.nrEmployed) < 4963.6 || Number(formData.nrEmployed) > 5228.1)) {
+    if (formData.nrEmployed && formData.nrEmployed.toString().trim() && (Number(formData.nrEmployed) < 4963.6 || Number(formData.nrEmployed) > 5228.1)) {
       newErrors.nrEmployed = 'Must be between 4963.6 and 5228.1';
     }
 
@@ -1417,7 +1411,7 @@ function FormSelect({ label, name, value, onChange, options, required, readOnly 
 
 
 // --- KanbanBoard Component ---
-function KanbanBoard({ customers, onUpdateStatus, onEdit, setError }) {
+function KanbanBoard({ customers, onUpdateStatus, setError }) {
   const [draggedItem, setDraggedItem] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -1514,7 +1508,6 @@ function KanbanBoard({ customers, onUpdateStatus, onEdit, setError }) {
                   key={customer.id} 
                   customer={customer} 
                   onDragStart={handleDragStart} 
-                  onEdit={onEdit} 
                   onViewDetails={handleViewDetails}
                 />
               ))}
@@ -1540,7 +1533,7 @@ function KanbanBoard({ customers, onUpdateStatus, onEdit, setError }) {
 }
 
 // --- KanbanCard Component ---
-function KanbanCard({ customer, onDragStart, onEdit, onViewDetails }) {
+function KanbanCard({ customer, onDragStart, onViewDetails }) {
   const getProbableSubscriberColor = (probable) => {
     if (probable === "Yes") return "text-green-400";
     if (probable === "No") return "text-red-400";
@@ -1556,7 +1549,6 @@ function KanbanCard({ customer, onDragStart, onEdit, onViewDetails }) {
       <div className="flex justify-between items-start mb-1">
         <h4 className="font-semibold text-gray-100 text-sm break-all">{customer.name}</h4>
         <div className="flex-shrink-0 space-x-1">
-            <button onClick={() => onEdit(customer)} className="text-sky-400 hover:text-sky-300 transition-colors p-0.5 rounded-md hover:bg-slate-600" title="Edit Customer"><Edit3 size={15} /></button>
             <button onClick={() => onViewDetails(customer)} className="text-emerald-400 hover:text-emerald-300 transition-colors p-0.5 rounded-md hover:bg-slate-600" title="View Details"><Eye size={15} /></button>
         </div>
       </div>
