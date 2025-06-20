@@ -126,9 +126,9 @@ const API_PASSWORD = import.meta.env.VITE_API_PASSWORD || 'your_secure_password'
 const makeAuthenticatedRequest = async (endpoint, options = {}) => {
   const url = `${API_URL}${endpoint}`;
   const headers = {
-    ...options.headers,
     'Authorization': 'Basic ' + btoa(`${API_USERNAME}:${API_PASSWORD}`),
     'Content-Type': 'application/json',
+    ...(options.headers || {}),
   };
 
   const response = await fetch(url, {
@@ -167,12 +167,12 @@ function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           setUserId('mockUserWithToken123');
-        } else {
+      } else {
           setUserId(crypto.randomUUID());
-        }
-        setIsAuthReady(true);
+      }
+      setIsAuthReady(true);
       } catch (err) {
         console.error("Error initializing auth:", err);
         setUserId('anonymous');
@@ -253,144 +253,150 @@ function App() {
 
   const handleSaveCustomer = async (customerData) => {
     try {
-      const { month, dayOfWeek } = getDerivedDateParts(customerData.lastContactDate);
+    const { month, dayOfWeek } = getDerivedDateParts(customerData.lastContactDate);
       const calculatedPdays = calculatePdays(customerData.lastContactDate);
 
-      const dataToSave = {
-        name: customerData.name,
-        telephone: customerData.phoneNumber,
-        age: customerData.age === "" ? null : Number(customerData.age),
-        job: "blue-collar", // Default value as it's not in our form
-        marital_status: customerData.maritalStatus,
-        education: customerData.education,
-        has_default_credit: customerData.defaultCredit,
-        has_housing_loan: customerData.housingLoan,
-        has_personal_loan: customerData.personalLoan,
-        contact_type: customerData.contactType,
-        last_contact_date: customerData.lastContactDate || null,
-        last_contact_month: month,
-        last_contact_day_of_week: dayOfWeek,
-        campaign: Number(customerData.campaignContacts),
-        last_contact_days: calculatedPdays === null ? null : calculatedPdays.toString(),
-        previous_number_of_contacts: Number(customerData.previousContacts),
-        previous_outcome: customerData.poutcome,
-        emp_var_rate: customerData.empVarRate === "" ? null : Number(customerData.empVarRate),
-        cons_price_idx: customerData.consPriceIdx === "" ? null : Number(customerData.consPriceIdx),
-        cons_conf_idx: customerData.consConfIdx === "" ? null : Number(customerData.consConfIdx),
-        euribor3m: customerData.euribor3m === "" ? null : Number(customerData.euribor3m),
-        nr_employed: customerData.nrEmployed === "" ? null : Number(customerData.nrEmployed),
-        status: "new",
-        customer_partition: "unseen",
-        excluded: false
-      };
+    // Helper to convert yes/no/unknown to boolean/null
+    const ynToBool = (val) => val === 'yes' ? true : val === 'no' ? false : null;
+    const unknownToNull = (val) => val === 'unknown' ? null : val;
 
-      const response = await makeAuthenticatedRequest('/add_customer/', {
-        method: 'POST',
-        body: JSON.stringify(dataToSave),
-      });
+    const dataToSave = {
+      name: customerData.name,
+      telephone: customerData.phoneNumber,
+      age: customerData.age === "" ? null : Number(customerData.age),
+      job: customerData.job || "unknown",
+      marital_status: customerData.maritalStatus,
+      education: customerData.education,
+      has_default_credit: customerData.defaultCredit, // 'yes' or 'no'
+      has_housing_loan: customerData.housingLoan,     // 'yes' or 'no'
+      has_personal_loan: customerData.personalLoan,   // 'yes' or 'no'
+      contact_type: customerData.contactType,
+      last_contact_date: customerData.lastContactDate || null,
+      last_contact_month: month,
+      last_contact_day_of_week: dayOfWeek,
+      campaign: customerData.campaignContacts === "" ? null : Number(customerData.campaignContacts),
+      last_contact_days: calculatedPdays === null ? null : calculatedPdays,
+      previous_number_of_contacts: customerData.previousContacts === "" ? null : Number(customerData.previousContacts),
+      previous_outcome: customerData.poutcome,
+      emp_var_rate: customerData.empVarRate === "" ? null : Number(customerData.empVarRate),
+      cons_price_idx: customerData.consPriceIdx === "" ? null : Number(customerData.consPriceIdx),
+      cons_conf_idx: customerData.consConfIdx === "" ? null : Number(customerData.consConfIdx),
+      euribor3m: customerData.euribor3m === "" ? null : Number(customerData.euribor3m),
+      nr_employed: customerData.nrEmployed === "" ? null : Number(customerData.nrEmployed),
+      status: "new",
+      customer_partition: "unseen",
+      excluded: false
+    };
 
-      const newCustomer = await response.json();
-      
-      // Close the form modal and show list view
+    console.log("Payload to /customers/", dataToSave);
+
+    const response = await makeAuthenticatedRequest('/customers/', {
+      method: 'POST',
+      body: JSON.stringify(dataToSave),
+    });
+
+    const newCustomer = await response.json();
+        
+        // Close the form modal and show list view
       setEditingCustomer(null);
       setCurrentView('list');
       setError(null);
-      showNotification('Customer saved successfully!', 'success');
+        showNotification('Customer saved successfully!', 'success');
 
-      // Then fetch the updated list and start prediction
+        // Then fetch the updated list and start prediction
       const listResponse = await makeAuthenticatedRequest('/list_customers/');
-      const apiData = await listResponse.json();
-      
-      const transformedCustomers = apiData.map((apiCust, index) => {
-        let internalStatus = CUSTOMER_STATUSES.PENDING; 
-        const apiStatusNormalized = apiCust.status ? apiCust.status.toLowerCase() : "";
-        if (apiStatusNormalized === "not subscribed") internalStatus = CUSTOMER_STATUSES.NOT_SUBSCRIBED;
-        else if (apiStatusNormalized === "pending") internalStatus = CUSTOMER_STATUSES.PENDING;
-        else if (apiStatusNormalized === "in progress") internalStatus = CUSTOMER_STATUSES.IN_PROGRESS;
-        else if (apiStatusNormalized === "subscribed") internalStatus = CUSTOMER_STATUSES.SUBSCRIBED;
-        else if (apiStatusNormalized === "contact failed") internalStatus = CUSTOMER_STATUSES.CONTACT_FAILED;
-
-        let probableSub = "Uncertain";
-        if (apiCust.predicted_label === "Yes") probableSub = "Yes";
-        else if (apiCust.predicted_label === "No") probableSub = "No";
+        const apiData = await listResponse.json();
         
-        const { month, dayOfWeek } = getDerivedDateParts(""); 
-        const pdaysValue = calculatePdays(""); 
+        const transformedCustomers = apiData.map((apiCust, index) => {
+          let internalStatus = CUSTOMER_STATUSES.PENDING; 
+          const apiStatusNormalized = apiCust.status ? apiCust.status.toLowerCase() : "";
+          if (apiStatusNormalized === "not subscribed") internalStatus = CUSTOMER_STATUSES.NOT_SUBSCRIBED;
+          else if (apiStatusNormalized === "pending") internalStatus = CUSTOMER_STATUSES.PENDING;
+          else if (apiStatusNormalized === "in progress") internalStatus = CUSTOMER_STATUSES.IN_PROGRESS;
+          else if (apiStatusNormalized === "subscribed") internalStatus = CUSTOMER_STATUSES.SUBSCRIBED;
+          else if (apiStatusNormalized === "contact failed") internalStatus = CUSTOMER_STATUSES.CONTACT_FAILED;
 
-        const customerId = parseInt(apiCust.customer_id || apiCust.id, 10);
-        if (isNaN(customerId)) {
-          console.error("Invalid customer ID received from API:", apiCust);
-          return null;
-        }
+          let probableSub = "Uncertain";
+          if (apiCust.predicted_label === "Yes") probableSub = "Yes";
+          else if (apiCust.predicted_label === "No") probableSub = "No";
+          
+          const { month, dayOfWeek } = getDerivedDateParts(""); 
+          const pdaysValue = calculatePdays(""); 
 
-        return {
-          ...initialCustomerForm, 
-          id: customerId,
-          name: apiCust.name || `Customer ${index + 1}`,
-          phoneNumber: apiCust.telephone || "",
-          contactingStatus: internalStatus,
-          customerScore: apiCust.predicted_score !== null ? Number(apiCust.predicted_score) : null,
-          probableSubscriber: probableSub,
-          lastContactDate: "", 
-          lastContactMonth: month,
-          lastContactDayOfWeek: dayOfWeek,
-          pdays: pdaysValue,
-          createdAt: new Date().toISOString(), 
-          updatedAt: new Date().toISOString(), 
-        };
-      }).filter(customer => customer !== null);
+          const customerId = parseInt(apiCust.customer_id || apiCust.id, 10);
+          if (isNaN(customerId)) {
+            console.error("Invalid customer ID received from API:", apiCust);
+            return null;
+          }
 
-      setCustomers(transformedCustomers);
-      setIsLoading(false); // Set loading to false after fetching the list
+          return {
+            ...initialCustomerForm, 
+            id: customerId,
+            name: apiCust.name || `Customer ${index + 1}`,
+            phoneNumber: apiCust.telephone || "",
+            contactingStatus: internalStatus,
+            customerScore: apiCust.predicted_score !== null ? Number(apiCust.predicted_score) : null,
+            probableSubscriber: probableSub,
+            lastContactDate: "", 
+            lastContactMonth: month,
+            lastContactDayOfWeek: dayOfWeek,
+            pdays: pdaysValue,
+            createdAt: new Date().toISOString(), 
+            updatedAt: new Date().toISOString(), 
+          };
+        }).filter(customer => customer !== null);
 
-      // Start prediction for the new customer
-      const newCustomerId = newCustomer.id || newCustomer.customer_id;
-      if (newCustomerId) {
-        setPredictingCustomers(prev => new Set([...prev, newCustomerId]));
-        showNotification('Starting prediction for new customer...', 'info');
-        
-        try {
+        setCustomers(transformedCustomers);
+        setIsLoading(false); // Set loading to false after fetching the list
+
+        // Start prediction for the new customer
+        const newCustomerId = newCustomer.id || newCustomer.customer_id;
+        if (newCustomerId) {
+          setPredictingCustomers(prev => new Set([...prev, newCustomerId]));
+          showNotification('Starting prediction for new customer...', 'info');
+          
+          try {
           const updateResponse = await makeAuthenticatedRequest(`/update_customer_prediction/${newCustomerId}`, {
-            method: 'POST',
+              method: 'POST',
             body: JSON.stringify({ customer_id: newCustomerId }),
-          });
-          
-          if (!updateResponse.ok) {
-            throw new Error(`Update prediction request failed with status ${updateResponse.status}`);
-          }
+            });
+            
+            if (!updateResponse.ok) {
+              throw new Error(`Update prediction request failed with status ${updateResponse.status}`);
+            }
 
-          // Get the predictions
+            // Get the predictions
           const predictionsResponse = await makeAuthenticatedRequest(`/predictions/${newCustomerId}`);
-          if (!predictionsResponse.ok) {
-            throw new Error(`Get predictions request failed with status ${predictionsResponse.status}`);
-          }
-          
-          const predictionData = await predictionsResponse.json();
-          
-          // Update the customer with new prediction data
-          setCustomers(prevCustomers =>
-            prevCustomers.map(cust =>
-              cust.id === newCustomerId
-                ? {
-                    ...cust,
-                    customerScore: predictionData.predicted_score !== null ? Number(predictionData.predicted_score) : null,
-                    probableSubscriber: predictionData.predicted_label === "Yes" ? "Yes" : predictionData.predicted_label === "No" ? "No" : "Uncertain",
-                    predictionExplanation: predictionData.explanation || ""
-                  }
-                : cust
-            )
-          );
-          showNotification('Prediction completed successfully!', 'success');
-        } catch (err) {
-          console.error("Error updating prediction:", err);
-          setError("Failed to update prediction. " + err.message);
-          showNotification('Failed to update prediction', 'error');
-        } finally {
-          setPredictingCustomers(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(newCustomerId);
-            return newSet;
-          });
+            if (!predictionsResponse.ok) {
+              throw new Error(`Get predictions request failed with status ${predictionsResponse.status}`);
+            }
+            
+            const predictionData = await predictionsResponse.json();
+            
+            // Update the customer with new prediction data
+            setCustomers(prevCustomers =>
+              prevCustomers.map(cust =>
+                cust.id === newCustomerId
+                  ? {
+                      ...cust,
+                      customerScore: predictionData.predicted_score !== null ? Number(predictionData.predicted_score) : null,
+                      probableSubscriber: predictionData.predicted_label === "Yes" ? "Yes" : predictionData.predicted_label === "No" ? "No" : "Uncertain",
+                      predictionExplanation: predictionData.explanation || ""
+                    }
+                  : cust
+              )
+            );
+            showNotification('Prediction completed successfully!', 'success');
+          } catch (err) {
+            console.error("Error updating prediction:", err);
+            setError("Failed to update prediction. " + err.message);
+            showNotification('Failed to update prediction', 'error');
+          } finally {
+            setPredictingCustomers(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(newCustomerId);
+              return newSet;
+            });
         }
       }
     } catch (err) {
@@ -446,8 +452,8 @@ function App() {
       console.error("Error fetching customer details for editing:", err);
       setError("Failed to load customer details for editing. " + err.message);
       // Fallback to original customer data if API call fails
-      setEditingCustomer(customer);
-      setCurrentView('form');
+    setEditingCustomer(customer);
+    setCurrentView('form');
     }
   };
 
@@ -491,7 +497,7 @@ function App() {
       // Get predictions
       const predictionsResponse = await makeAuthenticatedRequest(`/predictions/${customer.id}`);
       const predictionData = await predictionsResponse.json();
-      
+
       // Determine probable subscriber status
       let probableSubscriber = "Uncertain";
       const predictedLabel = predictionData.predicted_label?.toLowerCase();
@@ -517,7 +523,7 @@ function App() {
       );
 
       setSelectedCustomerForInsights(updatedCustomer);
-      setIsInsightsModalOpen(true);
+    setIsInsightsModalOpen(true);
     } catch (err) {
       console.error("Error in handleOpenInsightsModal:", err);
       setError("Failed to load prediction data. Please try again later.");
@@ -708,7 +714,7 @@ function App() {
         )}
       </main>
 
-      <footer className="text-center text-xs text-gray-500 mt-8 py-4 border-t border-slate-700">
+       <footer className="text-center text-xs text-gray-500 mt-8 py-4 border-t border-slate-700">
         Banking CRM Application &copy; {new Date().getFullYear()} (Data from API)
       </footer>
     </div>
@@ -863,7 +869,7 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
               <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors" onClick={() => onSort('name')}>
                 Name
                 {sortConfig.key === 'name' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
-              </th>
+                </th>
               <th scope="col" className="px-4 py-3 cursor-pointer hover:bg-slate-600 transition-colors" onClick={() => onSort('phoneNumber')}>
                 Phone Number
                 {sortConfig.key === 'phoneNumber' && (sortConfig.direction === 'ascending' ? ' ▲' : ' ▼')}
@@ -1142,11 +1148,11 @@ function CustomerForm({ onSave, onCancel, initialData }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      const finalFormData = {
-          ...formData,
-          pdays: formData.notPreviouslyContacted ? null : calculatePdays(formData.lastContactDate)
-      };
-      onSave(finalFormData);
+    const finalFormData = {
+        ...formData,
+        pdays: formData.notPreviouslyContacted ? null : calculatePdays(formData.lastContactDate)
+    };
+    onSave(finalFormData);
     }
   };
 
@@ -1302,7 +1308,7 @@ function CustomerForm({ onSave, onCancel, initialData }) {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-sky-300">
             {initialData.id ? 'Edit Customer' : 'Add New Customer'}
-          </h2>
+      </h2>
           <button
             onClick={onCancel}
             className="text-gray-400 hover:text-gray-200 transition-colors"
@@ -1314,26 +1320,26 @@ function CustomerForm({ onSave, onCancel, initialData }) {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex space-x-2 mb-6">
             {Object.entries(formTabs).map(([key, label]) => (
-              <button
-                key={key}
+            <button
+              key={key}
                 type="button"
-                onClick={() => setActiveTab(key)}
+              onClick={() => setActiveTab(key)}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   activeTab === key
                     ? 'bg-sky-500 text-white'
                     : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
                 }`}
-              >
+            >
                 {label}
-              </button>
-            ))}
-          </div>
+            </button>
+          ))}
+      </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {renderFormFields()}
-          </div>
+          {renderFormFields()}
+        </div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-slate-700">
+        <div className="flex justify-end space-x-3 pt-4 border-t border-slate-700">
             <button
               type="button"
               onClick={onCancel}
@@ -1346,9 +1352,9 @@ function CustomerForm({ onSave, onCancel, initialData }) {
               className="px-4 py-2 text-sm font-medium text-white bg-sky-500 hover:bg-sky-600 rounded-md shadow-sm transition-colors"
             >
               {initialData.id ? 'Update Customer' : 'Add Customer'}
-            </button>
-          </div>
-        </form>
+          </button>
+        </div>
+      </form>
       </div>
     </div>
   );
@@ -1746,48 +1752,44 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
       case 'demographic':
         return (
           <>
-            <DetailField label="Name" value={customer.name} shapValue={getShapValue('name')} />
             <DetailField label="Age" value={customer.age} shapValue={getShapValue('age')} />
-            <DetailField label="Phone Number" value={customer.telephone} shapValue={getShapValue('telephone')} />
-            <DetailField label="Marital Status" value={customer.marital_status} shapValue={getShapValue('marital')} />
+            <DetailField label="Marital Status" value={customer.marital_status} shapValue={getShapValue('marital_status')} />
             <DetailField label="Education" value={customer.education} shapValue={getShapValue('education')} />
+            <DetailField label="Job" value={customer.job} shapValue={getShapValue('job')} />
           </>
         );
       case 'credit':
         return (
           <>
-            <DetailField label="Credit in Default?" value={customer.has_default_credit} shapValue={getShapValue('default')} />
-            <DetailField label="Housing Loan?" value={customer.has_housing_loan} shapValue={getShapValue('housing')} />
-            <DetailField label="Personal Loan?" value={customer.has_personal_loan} shapValue={getShapValue('loan')} />
+            <DetailField label="Credit in Default?" value={customer.has_default_credit} shapValue={getShapValue('has_default_credit')} />
+            <DetailField label="Housing Loan?" value={customer.has_housing_loan} shapValue={getShapValue('has_housing_loan')} />
+            <DetailField label="Personal Loan?" value={customer.has_personal_loan} shapValue={getShapValue('has_personal_loan')} />
           </>
         );
       case 'lastContact':
         return (
           <>
-            <DetailField label="Last Contact Date" value={customer.last_contact_date} shapValue={getShapValue('last_contact_date')} />
-            <DetailField label="Last Contact Month" value={customer.last_contact_month} shapValue={getShapValue('month')} />
-            <DetailField label="Last Contact Day of Week" value={customer.last_contact_day_of_week} shapValue={getShapValue('day_of_week')} />
-            <DetailField label="Contact Type" value={customer.contact_type} shapValue={getShapValue('contact')} />
+            <DetailField label="Last Contact Month" value={customer.last_contact_month} shapValue={getShapValue('last_contact_month')} />
+            <DetailField label="Last Contact Day of Week" value={customer.last_contact_day_of_week} shapValue={getShapValue('last_contact_day_of_week')} />
+            <DetailField label="Contact Type" value={customer.contact_type} shapValue={getShapValue('contact_type')} />
           </>
         );
       case 'campaign':
         return (
           <>
             <DetailField label="Campaign Contacts" value={customer.campaign} shapValue={getShapValue('campaign')} />
-            <DetailField label="Days Since Last Contact" value={customer.last_contact_days} shapValue={getShapValue('pdays')} />
-            <DetailField label="Previous Contacts" value={customer.previous_number_of_contacts} shapValue={getShapValue('previous')} />
-            <DetailField label="Previous Campaign Outcome" value={customer.previous_outcome} shapValue={getShapValue('poutcome')} />
-            <DetailField label="Status" value={customer.status} shapValue={getShapValue('status')} />
+            <DetailField label="Previous Contacts" value={customer.previous_number_of_contacts} shapValue={getShapValue('previous_number_of_contacts')} />
+            <DetailField label="Previous Campaign Outcome" value={customer.previous_outcome} shapValue={getShapValue('previous_outcome')} />
           </>
         );
       case 'context':
         return (
           <>
-            <DetailField label="Employment Variation Rate" value={customer.emp_var_rate} shapValue={getShapValue('emp.var.rate')} />
-            <DetailField label="Consumer Price Index" value={customer.cons_price_idx} shapValue={getShapValue('cons.price.idx')} />
-            <DetailField label="Consumer Confidence Index" value={customer.cons_conf_idx} shapValue={getShapValue('cons.conf.idx')} />
+            <DetailField label="Employment Variation Rate" value={customer.emp_var_rate} shapValue={getShapValue('emp_var_rate')} />
+            <DetailField label="Consumer Price Index" value={customer.cons_price_idx} shapValue={getShapValue('cons_price_idx')} />
+            <DetailField label="Consumer Confidence Index" value={customer.cons_conf_idx} shapValue={getShapValue('cons_conf_idx')} />
             <DetailField label="Euribor 3 Month Rate" value={customer.euribor3m} shapValue={getShapValue('euribor3m')} />
-            <DetailField label="Number of Employees" value={customer.nr_employed} shapValue={getShapValue('nr.employed')} />
+            <DetailField label="Number of Employees" value={customer.nr_employed} shapValue={getShapValue('nr_employed')} />
           </>
         );
       default:
