@@ -156,7 +156,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterProbable, setFilterProbable] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
+  const [sortConfig, setSortConfig] = useState({ key: 'customerScore', direction: 'descending' });
   
   const [userId, setUserId] = useState(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
