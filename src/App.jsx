@@ -719,19 +719,16 @@ function App() {
         </div>
         <nav className="bg-slate-800/50 backdrop-blur-md shadow-lg rounded-lg p-3">
           <ul className="flex space-x-2 sm:space-x-4">
-            {['list', 'kanban'].map(view => (
-              <li key={view}>
-                <button
-                  onClick={() => { setCurrentView(view); setEditingCustomer(null); }}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out
-                    ${currentView === view ? 'bg-sky-500 text-white shadow-md' : 'text-gray-300 hover:bg-slate-700 hover:text-white'}`}
-                >
-                  {view === 'list' && <Users className="inline w-4 h-4 mr-1" />}
-                  {view === 'kanban' && <Columns className="inline w-4 h-4 mr-1" />}
-                  {view.charAt(0).toUpperCase() + view.slice(1)} View
-                </button>
-              </li>
-            ))}
+            <li>
+              <button
+                onClick={() => { setCurrentView('list'); setEditingCustomer(null); }}
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out
+                  ${currentView === 'list' ? 'bg-sky-500 text-white shadow-md' : 'text-gray-300 hover:bg-slate-700 hover:text-white'}`}
+              >
+                <Users className="inline w-4 h-4 mr-1" />
+                List View
+              </button>
+            </li>
              <li>
                 <button
                   onClick={() => { setEditingCustomer(null); setCurrentView('form'); }}
@@ -796,14 +793,6 @@ function App() {
                 onUpdateShapValues={handleUpdateShapValues}
                 updatingShap={updatingShap}
                 customersWithoutShap={customersWithoutShap}
-          />
-        )}
-        {currentView === 'kanban' && (
-          <KanbanBoard
-            customers={filteredCustomers} 
-            onUpdateStatus={handleUpdateStatus}
-            setError={setError}
-            checkShapValues={checkShapValues}
           />
         )}
         {currentView === 'form' && (
