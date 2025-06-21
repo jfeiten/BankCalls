@@ -1101,6 +1101,16 @@ function CustomerForm({ onSave, onCancel, initialData }) {
     }
     
     setFormData(newFormData);
+    
+    // Clear errors when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
+    }
+    
+    // Clear general error when user makes any change
+    if (errors.general) {
+      setErrors(prev => ({ ...prev, general: null }));
+    }
   };
 
   const validateForm = () => {
@@ -1156,6 +1166,24 @@ function CustomerForm({ onSave, onCancel, initialData }) {
         pdays: formData.notPreviouslyContacted ? null : calculatePdays(formData.lastContactDate)
     };
     onSave(finalFormData);
+    } else {
+      // Show a user-friendly message about missing fields
+      const missingFields = [];
+      if (!formData.name?.trim()) missingFields.push('Name');
+      if (!formData.age?.toString().trim()) missingFields.push('Age');
+      if (!formData.phoneNumber?.trim()) missingFields.push('Phone Number');
+      if (!formData.lastContactDate?.trim()) missingFields.push("Today's Date");
+      if (!formData.campaignContacts?.toString().trim()) missingFields.push('Campaign Contacts');
+      if (!formData.empVarRate?.toString().trim()) missingFields.push('Employment Variation Rate');
+      if (!formData.consPriceIdx?.toString().trim()) missingFields.push('Consumer Price Index');
+      if (!formData.consConfIdx?.toString().trim()) missingFields.push('Consumer Confidence Index');
+      if (!formData.euribor3m?.toString().trim()) missingFields.push('Euribor 3m Rate');
+      if (!formData.nrEmployed?.toString().trim()) missingFields.push('Number of Employees');
+      
+      if (missingFields.length > 0) {
+        const errorMessage = `Please fill in the following required fields: ${missingFields.join(', ')}`;
+        setErrors(prev => ({ ...prev, general: errorMessage }));
+      }
     }
   };
 
@@ -1323,6 +1351,16 @@ function CustomerForm({ onSave, onCancel, initialData }) {
           <FormField label="Name" name="name" value={formData.name} onChange={handleChange} required error={errors.name} />
           <FormField label="Phone Number" name="phoneNumber" type="tel" value={formData.phoneNumber} onChange={handleChange} required error={errors.phoneNumber} placeholder="e.g., 555-1234"/>
         </div>
+
+        {/* General error message for missing fields */}
+        {errors.general && (
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-lg">
+            <div className="flex items-center">
+              <AlertTriangle className="w-5 h-5 text-red-400 mr-2" />
+              <span className="text-red-300 text-sm font-medium">{errors.general}</span>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex space-x-2 mb-6">
