@@ -31,6 +31,7 @@ const probableSubscriberIcons = {
 
 const MARITAL_STATUSES = ["single", "married", "divorced", "unknown"];
 const EDUCATION_LEVELS = ["illiterate", "basic.4y", "basic.6y", "basic.9y", "high.school", "professional.course", "university.degree", "unknown"];
+const JOB_OPTIONS = ["admin.", "blue-collar", "entrepreneur", "housemaid", "management", "retired", "self-employed", "services", "student", "technician", "unemployed", "unknown"];
 const YES_NO_UNKNOWN = ["yes", "no", "unknown"];
 const CONTACT_TYPES = ["cellular", "telephone"];
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
@@ -42,13 +43,14 @@ const initialCustomerForm = {
   name: "",
   age: "",
   phoneNumber: "", 
+  job: JOB_OPTIONS[0],
   maritalStatus: MARITAL_STATUSES[0],
   education: EDUCATION_LEVELS[0],
   defaultCredit: YES_NO_UNKNOWN[0],
   housingLoan: YES_NO_UNKNOWN[0],
   personalLoan: YES_NO_UNKNOWN[0],
   contactType: CONTACT_TYPES[0],
-  lastContactDate: "", 
+  lastContactDate: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
   lastContactMonth: "", 
   lastContactDayOfWeek: "", 
   campaignContacts: 1,
@@ -425,6 +427,7 @@ function App() {
         name: customerDetails.name || customer.name || "",
         phoneNumber: customerDetails.telephone || customer.phoneNumber || "",
         age: customerDetails.age || "",
+        job: customerDetails.job || JOB_OPTIONS[0],
         maritalStatus: customerDetails.marital_status || MARITAL_STATUSES[0],
         education: customerDetails.education || EDUCATION_LEVELS[0],
         defaultCredit: customerDetails.has_default_credit || YES_NO_UNKNOWN[0],
@@ -1158,9 +1161,9 @@ function CustomerForm({ onSave, onCancel, initialData }) {
 
   const formTabs = {
     demographic: "Demographic",
+    currentCampaign: "Current Campaign",
+    previousCampaign: "Previous Campaign",
     credit: "Credit Info",
-    lastContact: "Last Contact Info", 
-    campaign: "Campaign/Other",
     context: "Social/Economic",
   };
 
@@ -1169,43 +1172,25 @@ function CustomerForm({ onSave, onCancel, initialData }) {
       case 'demographic':
         return (
           <>
-            <FormField label="Name" name="name" value={formData.name} onChange={handleChange} required error={errors.name} />
             <FormField label="Age" name="age" type="number" value={formData.age} onChange={handleChange} required error={errors.age} />
-            <FormField label="Phone Number" name="phoneNumber" type="tel" value={formData.phoneNumber} onChange={handleChange} required error={errors.phoneNumber} placeholder="e.g., 555-1234"/>
+            <FormSelect label="Job" name="job" value={formData.job} onChange={handleChange} options={JOB_OPTIONS} required />
             <FormSelect label="Marital Status" name="maritalStatus" value={formData.maritalStatus} onChange={handleChange} options={MARITAL_STATUSES} required />
             <FormSelect label="Education" name="education" value={formData.education} onChange={handleChange} options={EDUCATION_LEVELS} required />
           </>
         );
-      case 'credit':
+      case 'currentCampaign':
         return (
           <>
-            <FormSelect label="Credit in Default?" name="defaultCredit" value={formData.defaultCredit} onChange={handleChange} options={YES_NO_UNKNOWN} required />
-            <FormSelect label="Housing Loan?" name="housingLoan" value={formData.housingLoan} onChange={handleChange} options={YES_NO_UNKNOWN} required />
-            <FormSelect label="Personal Loan?" name="personalLoan" value={formData.personalLoan} onChange={handleChange} options={YES_NO_UNKNOWN} required />
-          </>
-        );
-      case 'lastContact':
-        return (
-          <>
-            <FormField label="Last Contact Date (Current Campaign)" name="lastContactDate" type="date" value={formData.lastContactDate} onChange={handleChange} required error={errors.lastContactDate} />
-            <FormField label="Last Contact Month" name="lastContactMonth" value={formData.lastContactMonth} onChange={() => {}} readOnly={true} placeholder="Derived from date" />
-            <FormField label="Last Contact Day of Week" name="lastContactDayOfWeek" value={formData.lastContactDayOfWeek} onChange={() => {}} readOnly={true} placeholder="Derived from date" />
             <FormSelect label="Contact Type" name="contactType" value={formData.contactType} onChange={handleChange} options={CONTACT_TYPES} required />
+            <FormField label="Today's Date" name="lastContactDate" type="date" value={formData.lastContactDate} onChange={handleChange} required error={errors.lastContactDate} />
+            <FormField label="Month" name="lastContactMonth" value={formData.lastContactMonth} onChange={() => {}} readOnly={true} placeholder="Derived from date" />
+            <FormField label="Day of Week" name="lastContactDayOfWeek" value={formData.lastContactDayOfWeek} onChange={() => {}} readOnly={true} placeholder="Derived from date" />
+            <FormField label="Campaign Contacts" name="campaignContacts" type="number" value={formData.campaignContacts} onChange={handleChange} min="0" required error={errors.campaignContacts} placeholder="Number of contacts performed during this campaign" />
           </>
         );
-      case 'campaign':
+      case 'previousCampaign':
         return (
           <>
-            <FormField label="Campaign Contacts (this campaign)" name="campaignContacts" type="number" value={formData.campaignContacts} onChange={handleChange} min="0" required error={errors.campaignContacts} />
-            <FormField 
-                label="Days Since Last Contact (This Campaign)" 
-                name="pdays" 
-                type="text" 
-                value={formData.pdays === null || formData.pdays === "" ? "N/A" : formData.pdays} 
-                onChange={() => {}} 
-                readOnly={true} 
-                placeholder="Calculated" 
-            />
             <div className="col-span-1 sm:col-span-2"> 
               <label className="block text-sm font-medium text-gray-300 mb-1">Previous Campaign Context</label>
               <div className="flex items-center space-x-2 mt-1">
@@ -1218,13 +1203,29 @@ function CustomerForm({ onSave, onCancel, initialData }) {
                     onChange={handleChange}
                     className="h-4 w-4 text-sky-500 border-slate-500 rounded focus:ring-sky-400"
                   />
-                  <span className="ml-2">Client not previously contacted</span>
+                  <span className="ml-2">Customer was not previously contacted</span>
                 </label>
               </div>
             </div>
-            <FormField label="Previous Contacts (before this campaign)" name="previousContacts" type="number" value={formData.previousContacts} onChange={handleChange} min="0" disabled={formData.notPreviouslyContacted} required={!formData.notPreviouslyContacted} />
+            <FormField 
+                label="Days Since Last Contact (Previous Campaign)" 
+                name="pdays" 
+                type="text" 
+                value={formData.pdays === null || formData.pdays === "" ? "N/A" : formData.pdays} 
+                onChange={() => {}} 
+                readOnly={true} 
+                placeholder="Calculated" 
+            />
+            <FormField label="Previous Contacts" name="previousContacts" type="number" value={formData.previousContacts} onChange={handleChange} min="0" disabled={formData.notPreviouslyContacted} required={!formData.notPreviouslyContacted} placeholder="Number of contacts before this campaign" />
             <FormSelect label="Previous Campaign Outcome" name="poutcome" value={formData.poutcome} onChange={handleChange} options={POUTCOME_OPTIONS} disabled={formData.notPreviouslyContacted} required={!formData.notPreviouslyContacted} />
-            <FormSelect label="Contacting Status" name="contactingStatus" value={formData.contactingStatus} onChange={handleChange} options={Object.values(CUSTOMER_STATUSES)} required />
+          </>
+        );
+      case 'credit':
+        return (
+          <>
+            <FormSelect label="Credit in Default?" name="defaultCredit" value={formData.defaultCredit} onChange={handleChange} options={YES_NO_UNKNOWN} required />
+            <FormSelect label="Housing Loan?" name="housingLoan" value={formData.housingLoan} onChange={handleChange} options={YES_NO_UNKNOWN} required />
+            <FormSelect label="Personal Loan?" name="personalLoan" value={formData.personalLoan} onChange={handleChange} options={YES_NO_UNKNOWN} required />
           </>
         );
       case 'context':
@@ -1315,6 +1316,12 @@ function CustomerForm({ onSave, onCancel, initialData }) {
           >
             <XCircle size={24} />
           </button>
+        </div>
+
+        {/* Name and Phone Number at the top */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 p-4 bg-slate-700/50 rounded-lg">
+          <FormField label="Name" name="name" value={formData.name} onChange={handleChange} required error={errors.name} />
+          <FormField label="Phone Number" name="phoneNumber" type="tel" value={formData.phoneNumber} onChange={handleChange} required error={errors.phoneNumber} placeholder="e.g., 555-1234"/>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -1741,9 +1748,9 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
 
   const formTabs = {
     demographic: "Demographic",
+    currentCampaign: "Current Campaign",
+    previousCampaign: "Previous Campaign",
     credit: "Credit Info",
-    lastContact: "Last Contact Info",
-    campaign: "Campaign/Other",
     context: "Social/Economic",
   };
 
@@ -1752,12 +1759,34 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
       case 'demographic':
         return (
           <>
-            <DetailField label="Name" value={customer.name} shapValue={getShapValue('name')} />
             <DetailField label="Age" value={customer.age} shapValue={getShapValue('age')} />
-            <DetailField label="Phone Number" value={customer.telephone} shapValue={getShapValue('telephone')} />
+            <DetailField label="Job" value={customer.job} shapValue={getShapValue('job')} />
             <DetailField label="Marital Status" value={customer.marital_status} shapValue={getShapValue('marital_status')} />
             <DetailField label="Education" value={customer.education} shapValue={getShapValue('education')} />
-            <DetailField label="Job" value={customer.job} shapValue={getShapValue('job')} />
+          </>
+        );
+      case 'currentCampaign':
+        return (
+          <>
+            <DetailField label="Contact Type" value={customer.contact_type} shapValue={getShapValue('contact_type')} />
+            <DetailField label="Today's Date" value={customer.last_contact_date} shapValue={getShapValue('last_contact_date')} />
+            <DetailField label="Month" value={customer.last_contact_month} shapValue={getShapValue('last_contact_month')} />
+            <DetailField label="Day of Week" value={customer.last_contact_day_of_week} shapValue={getShapValue('last_contact_day_of_week')} />
+            <DetailField label="Campaign Contacts" value={customer.campaign} shapValue={getShapValue('campaign')} />
+          </>
+        );
+      case 'previousCampaign':
+        return (
+          <>
+            <div className="col-span-1 sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-400 mb-1">Previous Campaign Context</label>
+              <div className="mt-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-gray-200">
+                <span>Customer was {customer.previous_number_of_contacts === null || customer.previous_number_of_contacts === 0 ? 'not previously contacted' : 'previously contacted'}</span>
+              </div>
+            </div>
+            <DetailField label="Days Since Last Contact (Previous Campaign)" value={customer.last_contact_days} shapValue={getShapValue('pdays')} />
+            <DetailField label="Previous Contacts" value={customer.previous_number_of_contacts} shapValue={getShapValue('previous_number_of_contacts')} />
+            <DetailField label="Previous Campaign Outcome" value={customer.previous_outcome} shapValue={getShapValue('previous_outcome')} />
           </>
         );
       case 'credit':
@@ -1766,31 +1795,6 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
             <DetailField label="Credit in Default?" value={customer.has_default_credit} shapValue={getShapValue('has_default_credit')} />
             <DetailField label="Housing Loan?" value={customer.has_housing_loan} shapValue={getShapValue('has_housing_loan')} />
             <DetailField label="Personal Loan?" value={customer.has_personal_loan} shapValue={getShapValue('has_personal_loan')} />
-          </>
-        );
-      case 'lastContact':
-        return (
-          <>
-            <DetailField label="Last Contact Date (Current Campaign)" value={customer.last_contact_date} shapValue={getShapValue('last_contact_date')} />
-            <DetailField label="Last Contact Month" value={customer.last_contact_month} shapValue={getShapValue('last_contact_month')} />
-            <DetailField label="Last Contact Day of Week" value={customer.last_contact_day_of_week} shapValue={getShapValue('last_contact_day_of_week')} />
-            <DetailField label="Contact Type" value={customer.contact_type} shapValue={getShapValue('contact_type')} />
-          </>
-        );
-      case 'campaign':
-        return (
-          <>
-            <DetailField label="Campaign Contacts (this campaign)" value={customer.campaign} shapValue={getShapValue('campaign')} />
-            <DetailField label="Days Since Last Contact (This Campaign)" value={customer.last_contact_days} shapValue={getShapValue('pdays')} />
-            <div className="col-span-1 sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-400 mb-1">Previous Campaign Context</label>
-              <div className="mt-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-gray-200">
-                <span>Client not previously contacted: {customer.previous_number_of_contacts === null || customer.previous_number_of_contacts === 0 ? 'Yes' : 'No'}</span>
-              </div>
-            </div>
-            <DetailField label="Previous Contacts (before this campaign)" value={customer.previous_number_of_contacts} shapValue={getShapValue('previous_number_of_contacts')} />
-            <DetailField label="Previous Campaign Outcome" value={customer.previous_outcome} shapValue={getShapValue('previous_outcome')} />
-            <DetailField label="Contacting Status" value={customer.status} shapValue={getShapValue('status')} />
           </>
         );
       case 'context':
@@ -1816,6 +1820,12 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-200 transition-colors">
             <XCircle size={24} />
           </button>
+        </div>
+
+        {/* Name and Phone Number at the top */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 p-4 bg-slate-700/50 rounded-lg">
+          <DetailField label="Name" value={customer.name} shapValue={getShapValue('name')} />
+          <DetailField label="Phone Number" value={customer.telephone} shapValue={getShapValue('telephone')} />
         </div>
 
         {/* Add prediction score display */}
