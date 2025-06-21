@@ -164,6 +164,7 @@ function App() {
   const [predictingCustomers, setPredictingCustomers] = useState(new Set());
   const [notification, setNotification] = useState(null);
   const [updatingShap, setUpdatingShap] = useState(false);
+  const [customersWithoutShap, setCustomersWithoutShap] = useState(new Set());
 
   // Initialize auth
   useEffect(() => {
@@ -237,6 +238,9 @@ function App() {
 
         setCustomers(transformedCustomers);
         setError(null);
+        
+        // Check SHAP values for all customers
+        checkShapValues(transformedCustomers);
       } catch (err) {
         console.error("Error fetching customers:", err);
         setError("Failed to load customers. Please try again later.");
@@ -251,6 +255,27 @@ function App() {
   const showNotification = (message, type = 'info') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000); // Clear after 5 seconds
+  };
+
+  const checkShapValues = async (customers) => {
+    const customersWithoutShapSet = new Set();
+    
+    for (const customer of customers) {
+      try {
+        const response = await makeAuthenticatedRequest(`/customers/${customer.id}/shap_values/`);
+        const shapData = await response.json();
+        
+        // If no SHAP values or empty array, mark as without SHAP
+        if (!shapData || !Array.isArray(shapData) || shapData.length === 0) {
+          customersWithoutShapSet.add(customer.id);
+        }
+      } catch (err) {
+        // If error fetching SHAP values, assume customer doesn't have them
+        customersWithoutShapSet.add(customer.id);
+      }
+    }
+    
+    setCustomersWithoutShap(customersWithoutShapSet);
   };
 
   const handleSaveCustomer = async (customerData) => {
@@ -351,6 +376,9 @@ function App() {
         setCustomers(transformedCustomers);
         setIsLoading(false); // Set loading to false after fetching the list
 
+        // Refresh SHAP status for the updated list
+        checkShapValues(transformedCustomers);
+
         // Start prediction for the new customer
         const newCustomerId = newCustomer.id || newCustomer.customer_id;
         if (newCustomerId) {
@@ -388,6 +416,20 @@ function App() {
                   : cust
               )
             );
+            
+            // Refresh SHAP status after prediction update
+            const updatedCustomers = customers.map(cust =>
+              cust.id === newCustomerId
+                ? {
+                    ...cust,
+                    customerScore: predictionData.predicted_score !== null ? Number(predictionData.predicted_score) : null,
+                    probableSubscriber: predictionData.predicted_label === "Yes" ? "Yes" : predictionData.predicted_label === "No" ? "No" : "Uncertain",
+                    predictionExplanation: predictionData.explanation || ""
+                  }
+                : cust
+            );
+            checkShapValues(updatedCustomers);
+            
             showNotification('Prediction completed successfully!', 'success');
           } catch (err) {
             console.error("Error updating prediction:", err);
@@ -525,7 +567,13 @@ function App() {
         )
       );
 
-      setSelectedCustomerForInsights(updatedCustomer);
+      // Refresh SHAP status after prediction update
+      const updatedCustomers = customers.map(cust =>
+        cust.id === customer.id ? updatedCustomer : cust
+      );
+      checkShapValues(updatedCustomers);
+
+      setSelectedCustomer(completeCustomerData);
     setIsInsightsModalOpen(true);
     } catch (err) {
       console.error("Error in handleOpenInsightsModal:", err);
@@ -537,7 +585,7 @@ function App() {
 
   const handleCloseInsightsModal = () => {
     setIsInsightsModalOpen(false);
-    setSelectedCustomerForInsights(null);
+    setSelectedCustomer(null);
   };
 
   const filteredCustomers = useMemo(() => {
@@ -595,6 +643,56 @@ function App() {
       });
       
       showNotification('SHAP values updated successfully!', 'success');
+      
+      // Refresh customer list and SHAP status after updating
+      try {
+        const response = await makeAuthenticatedRequest('/list_customers/');
+        const apiData = await response.json();
+        
+        const transformedCustomers = apiData.map((apiCust, index) => {
+          let internalStatus = CUSTOMER_STATUSES.PENDING; 
+          const apiStatusNormalized = apiCust.status ? apiCust.status.toLowerCase() : "";
+          if (apiStatusNormalized === "not subscribed") internalStatus = CUSTOMER_STATUSES.NOT_SUBSCRIBED;
+          else if (apiStatusNormalized === "pending") internalStatus = CUSTOMER_STATUSES.PENDING;
+          else if (apiStatusNormalized === "in progress") internalStatus = CUSTOMER_STATUSES.IN_PROGRESS;
+          else if (apiStatusNormalized === "subscribed") internalStatus = CUSTOMER_STATUSES.SUBSCRIBED;
+          else if (apiStatusNormalized === "contact failed") internalStatus = CUSTOMER_STATUSES.CONTACT_FAILED;
+
+          let probableSub = "Uncertain";
+          if (apiCust.predicted_label === "Yes") probableSub = "Yes";
+          else if (apiCust.predicted_label === "No") probableSub = "No";
+          
+          const { month, dayOfWeek } = getDerivedDateParts(""); 
+          const pdaysValue = calculatePdays(""); 
+
+          const customerId = parseInt(apiCust.customer_id || apiCust.id, 10);
+          if (isNaN(customerId)) {
+            console.error("Invalid customer ID received from API:", apiCust);
+            return null;
+          }
+
+          return {
+            ...initialCustomerForm, 
+            id: customerId,
+            name: apiCust.name || `Customer ${index + 1}`,
+            phoneNumber: apiCust.telephone || "",
+            contactingStatus: internalStatus,
+            customerScore: apiCust.predicted_score !== null ? Number(apiCust.predicted_score) : null,
+            probableSubscriber: probableSub,
+            lastContactDate: "", 
+            lastContactMonth: month,
+            lastContactDayOfWeek: dayOfWeek,
+            pdays: pdaysValue,
+            createdAt: new Date().toISOString(), 
+            updatedAt: new Date().toISOString(), 
+          };
+        }).filter(customer => customer !== null);
+
+        setCustomers(transformedCustomers);
+        checkShapValues(transformedCustomers);
+      } catch (err) {
+        console.error("Error refreshing customer list after SHAP update:", err);
+      }
     } catch (err) {
       console.error("Error updating SHAP values:", err);
       setError("Failed to update SHAP values. Please try again later.");
@@ -697,6 +795,7 @@ function App() {
                 predictingCustomers={predictingCustomers}
                 onUpdateShapValues={handleUpdateShapValues}
                 updatingShap={updatingShap}
+                customersWithoutShap={customersWithoutShap}
           />
         )}
         {currentView === 'kanban' && (
@@ -704,6 +803,7 @@ function App() {
             customers={filteredCustomers} 
             onUpdateStatus={handleUpdateStatus}
             setError={setError}
+            checkShapValues={checkShapValues}
           />
         )}
         {currentView === 'form' && (
@@ -726,7 +826,7 @@ function App() {
 
 // --- CustomerList Component ---
 // Added isLoading to props
-function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, onSort, sortConfig, setSearchTerm, setFilterStatus, setFilterProbable, predictingCustomers, onUpdateShapValues, updatingShap }) {
+function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, onSort, sortConfig, setSearchTerm, setFilterStatus, setFilterProbable, predictingCustomers, onUpdateShapValues, updatingShap, customersWithoutShap }) {
   const [editingStatusCustomerId, setEditingStatusCustomerId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -780,6 +880,9 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
       console.log("Complete customer data:", completeCustomerData);
       setSelectedCustomer(completeCustomerData);
       setIsDetailsModalOpen(true);
+      
+      // Note: The customer list update will be handled by the parent component
+      // since we don't have direct access to setCustomers here
     } catch (err) {
       console.error("Error fetching customer details:", err);
       setError("Failed to load customer details. " + err.message);
@@ -840,27 +943,29 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
               ))}
             </select>
         </div>
-        <button
-          onClick={onUpdateShapValues}
-          disabled={updatingShap}
-          className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-200 ${
-            updatingShap 
-              ? 'bg-slate-600 text-gray-400 cursor-not-allowed' 
-              : 'bg-purple-600 hover:bg-purple-500 text-white'
-          }`}
-        >
-          {updatingShap ? (
-            <>
-              <Clock className="w-4 h-4 animate-spin" />
-              Updating SHAP...
-            </>
-          ) : (
-            <>
-              <TrendingUp className="w-4 h-4" />
-              Update SHAP Values
-            </>
-          )}
-        </button>
+        {customersWithoutShap.size > 0 && (
+          <button
+            onClick={onUpdateShapValues}
+            disabled={updatingShap}
+            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all duration-200 ${
+              updatingShap 
+                ? 'bg-slate-600 text-gray-400 cursor-not-allowed' 
+                : 'bg-purple-600 hover:bg-purple-500 text-white'
+            }`}
+          >
+            {updatingShap ? (
+              <>
+                <Clock className="w-4 h-4 animate-spin" />
+                Getting SHAP...
+              </>
+            ) : (
+              <>
+                <TrendingUp className="w-4 h-4" />
+                Get SHAP Values ({customersWithoutShap.size})
+              </>
+            )}
+          </button>
+        )}
       </div>
       {customers.length === 0 && !isLoading ? ( 
         <p className="text-center text-gray-400 py-8">No customers found. Try adjusting your filters or the API returned no data.</p>
@@ -959,6 +1064,12 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
                     >
                       View Details
                     </button>
+                    {customersWithoutShap.has(customer.id) && (
+                      <span className="text-xs bg-orange-600/70 text-orange-100 px-2 py-1 rounded flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" />
+                        No SHAP
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1462,7 +1573,7 @@ function FormSelect({ label, name, value, onChange, options, required, readOnly 
 
 
 // --- KanbanBoard Component ---
-function KanbanBoard({ customers, onUpdateStatus, setError }) {
+function KanbanBoard({ customers, onUpdateStatus, setError, checkShapValues }) {
   const [draggedItem, setDraggedItem] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -1499,6 +1610,9 @@ function KanbanBoard({ customers, onUpdateStatus, setError }) {
       console.log("Complete customer data:", completeCustomerData);
       setSelectedCustomer(completeCustomerData);
       setIsDetailsModalOpen(true);
+      
+      // Note: The customer list update will be handled by the parent component
+      // since we don't have direct access to setCustomers here
     } catch (err) {
       console.error("Error fetching customer details:", err);
       setError("Failed to load customer details. " + err.message);
