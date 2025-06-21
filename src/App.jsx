@@ -1752,7 +1752,9 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
       case 'demographic':
         return (
           <>
+            <DetailField label="Name" value={customer.name} shapValue={getShapValue('name')} />
             <DetailField label="Age" value={customer.age} shapValue={getShapValue('age')} />
+            <DetailField label="Phone Number" value={customer.telephone} shapValue={getShapValue('telephone')} />
             <DetailField label="Marital Status" value={customer.marital_status} shapValue={getShapValue('marital_status')} />
             <DetailField label="Education" value={customer.education} shapValue={getShapValue('education')} />
             <DetailField label="Job" value={customer.job} shapValue={getShapValue('job')} />
@@ -1769,6 +1771,7 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
       case 'lastContact':
         return (
           <>
+            <DetailField label="Last Contact Date (Current Campaign)" value={customer.last_contact_date} shapValue={getShapValue('last_contact_date')} />
             <DetailField label="Last Contact Month" value={customer.last_contact_month} shapValue={getShapValue('last_contact_month')} />
             <DetailField label="Last Contact Day of Week" value={customer.last_contact_day_of_week} shapValue={getShapValue('last_contact_day_of_week')} />
             <DetailField label="Contact Type" value={customer.contact_type} shapValue={getShapValue('contact_type')} />
@@ -1777,19 +1780,27 @@ function CustomerDetailsModal({ customer, isOpen, onClose }) {
       case 'campaign':
         return (
           <>
-            <DetailField label="Campaign Contacts" value={customer.campaign} shapValue={getShapValue('campaign')} />
-            <DetailField label="Previous Contacts" value={customer.previous_number_of_contacts} shapValue={getShapValue('previous_number_of_contacts')} />
+            <DetailField label="Campaign Contacts (this campaign)" value={customer.campaign} shapValue={getShapValue('campaign')} />
+            <DetailField label="Days Since Last Contact (This Campaign)" value={customer.last_contact_days} shapValue={getShapValue('pdays')} />
+            <div className="col-span-1 sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-400 mb-1">Previous Campaign Context</label>
+              <div className="mt-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-gray-200">
+                <span>Client not previously contacted: {customer.previous_number_of_contacts === null || customer.previous_number_of_contacts === 0 ? 'Yes' : 'No'}</span>
+              </div>
+            </div>
+            <DetailField label="Previous Contacts (before this campaign)" value={customer.previous_number_of_contacts} shapValue={getShapValue('previous_number_of_contacts')} />
             <DetailField label="Previous Campaign Outcome" value={customer.previous_outcome} shapValue={getShapValue('previous_outcome')} />
+            <DetailField label="Contacting Status" value={customer.status} shapValue={getShapValue('status')} />
           </>
         );
       case 'context':
         return (
           <>
-            <DetailField label="Employment Variation Rate" value={customer.emp_var_rate} shapValue={getShapValue('emp_var_rate')} />
-            <DetailField label="Consumer Price Index" value={customer.cons_price_idx} shapValue={getShapValue('cons_price_idx')} />
-            <DetailField label="Consumer Confidence Index" value={customer.cons_conf_idx} shapValue={getShapValue('cons_conf_idx')} />
-            <DetailField label="Euribor 3 Month Rate" value={customer.euribor3m} shapValue={getShapValue('euribor3m')} />
-            <DetailField label="Number of Employees" value={customer.nr_employed} shapValue={getShapValue('nr_employed')} />
+            <DetailField label="Employment Variation Rate (quarterly)" value={customer.emp_var_rate} shapValue={getShapValue('emp_var_rate')} />
+            <DetailField label="Consumer Price Index (monthly)" value={customer.cons_price_idx} shapValue={getShapValue('cons_price_idx')} />
+            <DetailField label="Consumer Confidence Index (monthly)" value={customer.cons_conf_idx} shapValue={getShapValue('cons_conf_idx')} />
+            <DetailField label="Euribor 3m Rate (daily)" value={customer.euribor3m} shapValue={getShapValue('euribor3m')} />
+            <DetailField label="Number of Employees (quarterly)" value={customer.nr_employed} shapValue={getShapValue('nr_employed')} />
           </>
         );
       default:
