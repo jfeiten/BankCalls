@@ -950,7 +950,7 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
             ) : (
               <>
                 <TrendingUp className="w-4 h-4" />
-                Get SHAP Values ({customersWithoutShap.size})
+                Generate Explanation ({customersWithoutShap.size})
               </>
             )}
           </button>
@@ -1056,7 +1056,7 @@ function CustomerList({ customers, isLoading, onEdit, onDelete, onUpdateStatus, 
                     {customersWithoutShap.has(customer.id) && (
                       <span className="text-xs bg-orange-600/70 text-orange-100 px-2 py-1 rounded flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        No SHAP
+                        No Explanation
                       </span>
                     )}
                   </div>
