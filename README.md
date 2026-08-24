@@ -4,14 +4,14 @@
 
 **1. O Cenário e o Gargalo Operacional**
 
- Imagine uma operação de telemarketing bancário enfrentando uma lista de 12.357 clientes. Na abordagem tradicional, a equipe realiza chamadas para toda a base, sem qualquer tipo de priorização. O resultado dessa abordagem "às cegas" é um desgaste operacional e uma taxa de sucesso de apenas **11,3%** (1.392 conversões em mais de 12 mil tentativas). Assim, o problema da operação é a alocação ineficiente de tempo e recursos.
+Imagine uma operação de telemarketing bancário enfrentando uma lista de 12.357 clientes. Na abordagem tradicional, a equipe realiza chamadas para toda a base, sem qualquer tipo de priorização. O resultado dessa abordagem "às cegas" é um desgaste operacional e uma taxa de sucesso de apenas **11,3%** (1.392 conversões em mais de 12 mil tentativas). Assim, o problema da operação é a alocação ineficiente de tempo e recursos.
 
 **2. A Descoberta nos Dados e o Desenho da IA**
 
 Para encontrar o padrão oculto por trás do perfil dos compradores, analisei uma base histórica com aproximadamente 41 mil registros e 20 variáveis de campanhas de investimento de uma instituição bancária (fonte: [https://archive.ics.uci.edu/dataset/222/bank+marketing](https://archive.ics.uci.edu/dataset/222/bank+marketing)).
 
-- **A Estratégia do Algoritmo:** Treinei um modelo de *Random Forest*  com 19 variáveis preditoras (*features*), ajustando os hiperparâmetros (a combinação ótima foi `mtry = 1` e `minimum trees = 14`).
-- **Generalização e Estabilidade:** O modelo alcançou uma **AUC de 0,788** no treinamento e **0,790** no conjunto de teste (composto por mais de 12 mil exemplos (nunca antes utilizados para o treinamento deste modelo). Essa convergência de métricas sugere a capacidade de generalização do algoritmo, confirmando que não houve *overfitting* (em outras palavras, o modelo conseguiu encontrar um padrão que explica os dados e não "decorou" esses nem ficou ajustado ao ruído).
+- **A Estratégia do Algoritmo:** Treinei um modelo de *Random Forest* com 19 variáveis preditoras (*features*), ajustando os hiperparâmetros (a combinação ótima foi `mtry = 1` e `minimum trees = 14`).
+- **Generalização e Estabilidade:** O modelo alcançou uma **AUC de 0,788** no treinamento e **0,790** no conjunto de teste (composto por mais de 12 mil exemplos nunca antes utilizados para o treinamento deste modelo). Essa convergência de métricas sugere a capacidade de generalização do algoritmo, confirmando que não houve *overfitting* (em outras palavras, o modelo conseguiu encontrar um padrão que explica os dados e não "decorou" esses nem ficou ajustado ao ruído).
 - **O Ponto Forte do Modelo (Especificidade de 89%):** demonstrou boa capacidade em filtrar os *verdadeiros negativos*; aprendeu a descartar quem **não** iria comprar.
 - **Sensibilidade e Erro Preditivo:** A sensibilidade ficou em **60%** (capacidade de identificar os potenciais compradores), apresentando uma taxa de falsos negativos de **4,5%** (558 clientes que contratariam o investimento, mas foram classificados como não propensos).
 - **Fatores Decisivos:** A variável de maior relevância preditiva foi o histórico de contatos prévios com o cliente, seguida por indicadores macroeconômicos (como a taxa de ocupação no mercado de trabalho).
@@ -22,7 +22,7 @@ Uma métrica isolada não gera valor se o usuário final não souber como utiliz
 
 - **Fila de Priorização Automática:** A aplicação ordena os clientes pelo *score* predito de aceitação da campanha.
 - **Explicabilidade Individual (XAI):** O sistema detalha os fatores marginais que formaram aquele *score*. O operador consegue ver exatamente se a faixa etária do cliente reduziu a probabilidade ou se o estado civil aumentou a propensão de aceite.
-- **Tecnologias utilizadas:** O modelo foi treinado em **R**, exposto via API REST com **Python (FastAPI)**, conteinerizado com **Docker** e hospedado em nuvem (**GCP** para a API/banco e **Railway** para o front-end). Além disso, o Cursor para geração de código.
+- **Tecnologias utilizadas:** O modelo foi treinado em **R**, exposto via API REST com **Python (FastAPI)**, conteinerizado com **Docker** e hospedado em nuvem (**GCP** para a API/banco e **Railway** para o front-end). O **Cursor** foi usado para geração de código.
 
 Veja mais detalhes sobre as funcionalidades do protótipo no fim deste documento.
 
@@ -32,26 +32,48 @@ Veja mais detalhes sobre as funcionalidades do protótipo no fim deste documento
 
 Ao aplicar o modelo preditivo para filtrar a fila de chamadas no conjunto de teste, o resultado prático da operação muda drasticamente:
 
-
 | Métrica de Negócio          | Abordagem Tradicional (Sem ML)      | Abordagem Preditiva (Com ML)              |
 | --------------------------- | ----------------------------------- | ----------------------------------------- |
 | **Volume de Ligações**      | 12.357 chamadas (conjunto de teste) | ~2.000 chamadas (**83% de redução**)      |
 | **Taxa de Conversão**       | 11,3% de sucesso                    | **41,3% de sucesso (quase 4x maior)**     |
 | **Produtividade da Equipe** | Alta rejeição e desperdício         | Foco exclusivo nos perfis de alto retorno |
 
+A equipe deixa de realizar 10 mil ligações improdutivas, enquanto a taxa de conversão sobe para 41,3%, otimizando o custo por aquisição e acelerando o tempo de geração de valor para o banco.
 
-A equipe deixa de realizar 10 mil ligações improdutivas, enquanto a taxa de conversão sobre para 41,3%, otimizando o custo por aquisição e acelerando o tempo de geração de valor para o banco.
-
-Sem o modelo de *machine learning*,  a equipe liga para todos os 12.357 clientes e fecha negócio com apenas 11,3% deles — o que significa cerca de 11 vendas a cada 100 ligações. Com o modelo, o time foca apenas nas 2.021 pessoas recomendadas e a taxa de acerto salta para 41,3% (41 vendas a cada 100 tentativas). Na prática, a ferramenta multiplica a eficiência das vendas por quase quatro vezes e evita mais de 10 mil ligações desnecessárias.
+Sem o modelo de *machine learning*, a equipe liga para todos os 12.357 clientes e fecha negócio com apenas 11,3% deles — o que significa cerca de 11 vendas a cada 100 ligações. Com o modelo, o time foca apenas nas 2.021 pessoas recomendadas e a taxa de acerto salta para 41,3% (41 vendas a cada 100 tentativas). Na prática, a ferramenta multiplica a eficiência das vendas por quase quatro vezes e evita mais de 10 mil ligações desnecessárias.
 
 **5. Considerações e Próximos Passos**
 
-A utilização de um modelo preditivo — mesmo com desempenho moderado — sugere que a priorização guiada por dados reorganiza a dinâmica operacional de equipes de vendas. 
+A utilização de um modelo preditivo — mesmo com desempenho moderado — sugere que a priorização guiada por dados reorganiza a dinâmica operacional de equipes de vendas.
 
 ## Detalhes das Funcionalidades do Protótipo de Sistema
 
+### Fila de priorização
 
+A lista de clientes é ordenada pelo *score* predito. Cada linha mostra o status do contato, a probabilidade de aceite e se o modelo classifica a pessoa como provável assinante.
 
-![Fila de priorização do protótipo](docs/images/1.png)
+<img src="docs/images/1.png" alt="Fila de clientes ordenada pelo score predito" width="800">
 
-<img src="docs/images/1.png" alt="Fila de priorização" width="700">
+### Cadastro de novo cliente
+
+O operador inclui um lead com dados demográficos, de campanha, crédito e indicadores socioeconômicos — as mesmas variáveis usadas pelo modelo.
+
+<img src="docs/images/3.png" alt="Modal de cadastro de novo cliente" width="800">
+
+### Predição em tempo real
+
+Ao salvar o cliente, o *score* é calculado em segundo plano. Enquanto a API responde, a linha fica no estado "Predicting...".
+
+<img src="docs/images/4.png" alt="Predição em andamento após o cadastro de um cliente" width="800">
+
+### Valores SHAP
+
+A explicabilidade não é calculada para toda a base de uma vez. O operador solicita os valores SHAP dos clientes que ainda não os têm (indicados pela tag *No SHAP*).
+
+<img src="docs/images/5.png" alt="Lista com tag No SHAP e botão para obter valores SHAP" width="800">
+
+### Explicabilidade individual (XAI)
+
+Nos detalhes do cliente, cada variável aparece com a contribuição marginal ao *score*: valores em verde aumentaram a propensão de aceite; valores em vermelho reduziram.
+
+<img src="docs/images/2.png" alt="Detalhes do cliente com contribuições SHAP por variável" width="800">
